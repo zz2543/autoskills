@@ -1,0 +1,8 @@
+extends: default.yaml
+experiment_name: local_mock
+llm:
+  provider: mock
+  model: mock-llm
+  use_cache: false
+experiments:
+  default_output_dir: results/local_mock

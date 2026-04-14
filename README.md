@@ -1,1 +1,355 @@
-# autoskills
+# APO-SkillsMD
+
+APO-SkillsMD 是一个面向 AAAI 2027 研究实验的 Python 框架，用于把 `SKILL.md + scripts/` 形式的 agent skill 当作“代码 + 文本混合体”进行自动演化。当前仓库已经按照 `plan.md` 的要求搭建出完整代码框架，覆盖：
+
+- 冗余池初始化
+- 沙盒执行与 Trace 收集
+- Trace-guided 变异
+- 模块级交叉
+- Pareto 多目标选择
+- 实验驱动与结果落盘
+- 本地 mock 烟测、单元测试与最小集成测试
+
+项目默认把 MiniMax 当作主 LLM 后端，同时保留 OpenAI / Anthropic / Gemini / Qwen 的接入口。为了让仓库在没有外部 key 的情况下也能先跑通，额外提供了 `mock` provider 和 `configs/local_mock.yaml`。
+
+## 1. 当前实现边界
+
+这个仓库当前是“可运行研究框架骨架”，不是已经做满所有真实线上集成细节的最终实验系统。具体边界如下：
+
+- `MiniMax` 已按 OpenAI-compatible 接口接入，可通过配置 `base_url` 和 `model` 使用。
+- `OpenAI` 复用同一套 OpenAI-compatible 客户端。
+- `Anthropic / Gemini / Qwen` 目前保留了结构化接入口和统一抽象，但真实请求细节仍是 `NotImplementedError` 占位。
+- `DockerSandbox` 按计划保留为 TODO 桩，当前默认可运行的是 `SubprocessSandbox`。
+- `trace-guided mutation`、`crossover`、`escape`、`NSGA-II` 都已经有实际代码路径，不是空文件。
+- `trace-guided mutation` 现在通过固定的 mutation agent + 元 skill 执行；`lineage-guided mutation` 仍保留轻量占位分支。
+
+如果后续你要把这个仓库直接用于正式实验，优先补的是真实 provider 接口细节、Docker 隔离、以及真实 SkillsBench / 冗余池数据下载后的端到端验证。
+
+## 2. 环境要求
+
+- Python `>= 3.11`
+- 建议使用虚拟环境
+- API key 只放 `.env`，不要写进代码或提交到仓库
+
+安装：
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
+python -m pip install -e .[dev]
+```
+
+配置环境变量：
+
+```bash
+cp .env.example .env
+```
+
+如果你要跑 MiniMax，请在 `.env` 里填写：
+
+```bash
+MINIMAX_API_KEY=你的新 key
+MINIMAX_BASE_URL=https://api.minimax.chat/v1
+MINIMAX_MODEL=abab6.5s-chat
+```
+
+## 3. 目录说明
+
+### 根目录
+
+| 路径 | 作用 |
+| --- | --- |
+| `pyproject.toml` | 项目依赖、pytest、ruff、mypy 配置 |
+| `.env.example` | API key 占位模板 |
+| `.gitignore` | 忽略 `.env`、`data/`、`results/`、缓存目录 |
+| `plan.md` | 框架实施计划 |
+| `🌟🌟实验框架设计-20260412.md` | 实验与方法设计背景 |
+| `configs/` | 默认配置、实验配置、本地 mock 配置 |
+| `meta_skills/` | 内置元 skill；当前包含固定的 mutation mutator |
+| `scripts/` | 下载数据、烟测、实验 CLI |
+| `tests/` | 单元测试、最小集成测试、夹具 |
+
+### `src/apo_skillsmd/`
+
+#### 共享配置与类型
+
+| 文件 | 作用 |
+| --- | --- |
+| `config.py` | `AppSettings`、YAML 配置加载、`.env` 合并 |
+| `types.py` | Provider、Sandbox、Safety 枚举，以及 `TaskSpec` 等共享模型 |
+
+#### `skill/`
+
+| 文件 | 作用 |
+| --- | --- |
+| `model.py` | `Skill`、`SkillFrontmatter`、`ScriptFile`、`SkillProvenance` |
+| `loader.py` | 从目录加载 skill，解析 `SKILL.md` 与 `scripts/` |
+| `serializer.py` | 把内存中的 skill 持久化回目录 |
+
+#### `llm/`
+
+| 文件 | 作用 |
+| --- | --- |
+| `base.py` | 统一 `LLMClient`、`LLMMessage`、`ToolCall`、`ToolSchema` 抽象 |
+| `tool_adapters.py` | 不同 provider 的 tool-use 格式归一化 |
+| `cache.py` | `diskcache` 封装，减少实验重复调用成本 |
+| `openai.py` | OpenAI-compatible HTTP 客户端 |
+| `minimax.py` | MiniMax 默认后端 |
+| `anthropic.py` | Anthropic 结构化接入口，占位待实现 |
+| `gemini.py` | Gemini 结构化接入口，占位待实现 |
+| `qwen.py` | Qwen 结构化接入口，占位待实现 |
+| `factory.py` | 按配置构建 provider；含本地 `MockLLMClient` |
+
+#### `agent/`
+
+| 文件 | 作用 |
+| --- | --- |
+| `prompt.py` | 构造系统提示词和任务提示词 |
+| `tools.py` | 默认工具集合：`bash` / `file_read` / `file_write` / `file_list` |
+| `trace_emitter.py` | tool 返回内容序列化辅助 |
+| `loop.py` | provider-agnostic agent loop 主执行器，返回 `AgentResult` |
+
+#### `sandbox/`
+
+| 文件 | 作用 |
+| --- | --- |
+| `base.py` | `Sandbox` 抽象接口 |
+| `profiles.py` | `offline-local / offline-extended / network-whitelist` 三档 profile |
+| `subprocess_backend.py` | 默认 tempdir + subprocess 沙盒，支持资源限制和文件隔离 |
+| `docker_backend.py` | Docker 后端占位，未来可替换 |
+
+#### `safety/`
+
+| 文件 | 作用 |
+| --- | --- |
+| `regex_rules.py` | prompt injection、`eval/exec`、网络调用等规则 |
+| `static_bandit.py` | Bandit CLI 封装 |
+| `runtime_guard.py` | 运行时越界写入 / 硬编码答案的辅助检查 |
+| `filter.py` | `SafetyFilter` 统一输出 `SafetyVerdict` |
+
+#### `trace/`
+
+| 文件 | 作用 |
+| --- | --- |
+| `schema.py` | `Trace`、`ModuleEvent`、`FinalOutput` |
+| `recorder.py` | agent loop 执行过程中累计 token、工具事件和输出 |
+| `attribution.py` | 变异和交叉用到的 trace 归因辅助 |
+
+#### `bench/`
+
+| 文件 | 作用 |
+| --- | --- |
+| `skillsbench.py` | 任务加载、case 逐条执行、pass rate 汇总 |
+| `pool_sources.py` | 冗余池仓库来源定义 |
+| `baselines.py` | baseline skill 批量加载 |
+
+#### `evolution/`
+
+| 文件 | 作用 |
+| --- | --- |
+| `retrieval.py` | BM25 / 词重叠检索初始 skill |
+| `init_pool.py` | 初始种群构建与 synthetic fallback |
+| `mutation.py` | 对外 mutation 接口；trace 分支委托给 mutation agent |
+| `mutation_agent.py` | 固定调用元 skill 生成完整 child skill 目录 |
+| `slot_align.py` | 函数级功能槽对齐 |
+| `crossover.py` | 模块级交叉与语法检查 |
+| `escape.py` | 种群停滞时的多样性注入 |
+| `pareto.py` | NSGA-II 非支配排序与拥挤度计算 |
+| `loop.py` | 主进化驱动器，支持 ablation flag 和结果落盘 |
+
+#### `experiments/`
+
+| 文件 | 作用 |
+| --- | --- |
+| `base.py` | `ExperimentRunner`、`ResultStore` |
+| `exp1_main.py` | 主实验 runner |
+| `exp2_ablation.py` | 消融实验 runner |
+| `exp3_init.py` | 初始化对比 runner |
+| `exp4_qualitative.py` | 定性分析 runner |
+| `aggregate.py` | 多实验 summary 聚合 |
+
+### `meta_skills/`
+
+| 路径 | 作用 |
+| --- | --- |
+| `meta_skills/skill_mutator/` | 固定的 mutation 元 skill，内置三阶段工作流和 helper scripts，负责读取父 skill 与 trace 并输出完整 child skill 包 |
+
+## 4. 配置文件说明
+
+### `configs/default.yaml`
+
+主配置，控制：
+
+- `llm`：provider、model、缓存、超时
+- `sandbox`：profile、最大步数、命令超时
+- `paths`：数据目录、结果目录、skillsbench、pool、baseline 路径，以及 mutation meta-skill 路径
+- `evolution`：种群大小、代数、检索 top-k、逃逸与 Pareto 开关
+- `experiments`：默认任务路径和输出目录
+
+### 其他配置
+
+| 文件 | 作用 |
+| --- | --- |
+| `configs/exp1_main.yaml` | 主实验输出目录 |
+| `configs/exp2_ablation.yaml` | 消融实验输出目录 |
+| `configs/exp3_init.yaml` | 初始化对比输出目录 |
+| `configs/exp4_qualitative.yaml` | 定性分析输出目录 |
+| `configs/local_mock.yaml` | 本地无 key dry-run 配置 |
+
+## 5. 常用命令
+
+### 5.1 本地烟测，不依赖真实 API
+
+这个命令用脚本内置的 `ScriptedSmokeLLM` 验证 agent loop + sandbox + trace 是否连通：
+
+```bash
+python scripts/smoke_phase1.py \
+  --skill tests/fixtures/mock_skill \
+  --task tests/fixtures/mock_task.json
+```
+
+预期会输出 JSON，包含：
+
+- `success: true`
+- `workspace_files` 中出现 `out.txt`
+- `trace_modules` 中出现 `tool:bash`
+
+### 5.2 本地 mock 实验，不依赖真实 API
+
+这个命令会跑完整的 experiment runner + evolution driver，但用 `mock` provider：
+
+```bash
+python scripts/run_experiment.py \
+  --config configs/local_mock.yaml \
+  --task-path tests/fixtures/mock_task.json \
+  --out results/local_mock_demo
+```
+
+运行后会在 `results/local_mock_demo/` 下产出：
+
+- `experiment_summary.json`
+- `experiment_summary.csv`
+- `tests_mock-task/final_pareto.json`
+- `tests_mock-task/generation_*/population.jsonl`
+- `tests_mock-task/generation_*/mutants.jsonl`
+- `tests_mock-task/generation_*/offspring.jsonl`
+- `tests_mock-task/generation_*/selected.jsonl`
+- `tests_mock-task/safety_rejects.jsonl`
+- `tests_mock-task/summary.csv`
+
+这个本地 mock 实验现在也会经过 mutation agent。默认内置元 skill 是 `meta_skills/skill_mutator/`，child skill 输出目录协议固定为 `artifacts/child_skill/`。
+
+当前内置元 skill 已经把 mutation 工作流内化为三阶段：
+
+- Inspect：读取父 skill、trace 和 mutation spec
+- Rewrite：把修复写回完整 child skill 包，而不是只返回说明
+- Self-Check：确认 `SKILL.md`、`scripts/` 和导入示例都与最终产物一致
+
+### 5.3 下载真实数据
+
+下载 SkillsBench：
+
+```bash
+python scripts/download_skillsbench.py --out data/skillsbench
+```
+
+下载冗余池：
+
+```bash
+python scripts/download_skill_pools.py --out data/skill_pool
+```
+
+下载 baseline：
+
+```bash
+python scripts/download_baselines.py --out data/baselines/anthropic-skills
+```
+
+### 5.4 运行真实实验
+
+如果你已经准备好 `.env`，并且要跑 MiniMax：
+
+```bash
+python scripts/run_experiment.py \
+  --config configs/default.yaml \
+  --task-id your_task_id \
+  --out results/exp_real
+```
+
+也可以直接指定任务文件：
+
+```bash
+python scripts/run_experiment.py \
+  --config configs/default.yaml \
+  --task-path data/skillsbench/tasks/your_task.json \
+  --population-size 6 \
+  --generations 2 \
+  --out results/exp_real
+```
+
+## 6. 测试命令
+
+运行测试：
+
+```bash
+python -m pytest -q
+```
+
+静态编译检查：
+
+```bash
+python -m compileall src tests scripts
+```
+
+当前仓库已验证：
+
+- `python -m pytest -q` 通过
+- `python scripts/smoke_phase1.py --skill tests/fixtures/mock_skill --task tests/fixtures/mock_task.json` 通过
+- `python scripts/run_experiment.py --config configs/local_mock.yaml --task-path tests/fixtures/mock_task.json --out results/local_mock_check` 通过
+
+## 7. 结果目录格式
+
+每个任务结果目录下默认包含：
+
+- `generation_{k}/population.jsonl`：该代种群
+- `generation_{k}/mutants.jsonl`：变异产生的候选
+- `generation_{k}/offspring.jsonl`：交叉和逃逸产生的候选
+- `generation_{k}/selected.jsonl`：进入下一代的候选
+- `generation_{k}/evaluations.jsonl`：当前落盘时的评估快照
+- `final_pareto.json`：最终 Pareto 前沿
+- `summary.csv`：每代最佳 pass rate
+- `safety_rejects.jsonl`：被安全层过滤的候选
+
+## 8. 后续建议
+
+如果你下一步要把它推向正式实验，建议按这个顺序继续：
+
+1. 先补实 `Anthropic / Gemini / Qwen` 的真实接口。
+2. 再补 Docker 沙盒，把 macOS 下的 best-effort 隔离升级成强隔离。
+3. 把 `lineage-guided mutation` 也迁移到同一个 mutation agent 机制。
+4. 接入真实 SkillsBench 数据和真实 skill 池，跑最小规模端到端实验。
+5. 再做 Exp 2 / Exp 3 / Exp 4 的论文级结果整理。
+
+## 9. 安全说明
+
+- 任何 API key 只应出现在 `.env` 中。
+- `.env` 已被 `.gitignore` 忽略。
+- trace、结果文件和日志中不应记录 API key。
+- 现有安全层会对 `eval/exec`、`shell=True`、网络调用、常见 prompt injection 等做硬拦截。
+
+## 10. 已实现验证夹具
+
+`tests/fixtures/` 里提供了最小可运行样例：
+
+- `mock_skill/`
+- `mock_skill_variant/`
+- `mock_task.json`
+
+这些夹具可以用于：
+
+- 校验 skill loader / serializer
+- 校验 agent loop 与 sandbox
+- 校验 mutation agent + meta-skill 输出协议
+- 校验 SkillsBench evaluator
+- 校验 EvolutionDriver 的最小进化闭环

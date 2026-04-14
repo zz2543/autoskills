@@ -1,0 +1,39 @@
+llm:
+  provider: minimax
+  model: abab6.5s-chat
+  temperature: 0.2
+  max_tokens: 2048
+  base_url: https://api.minimax.chat/v1
+  use_cache: true
+  cache_dir: .cache/llm
+
+sandbox:
+  profile: offline-local
+  max_steps: 8
+  command_timeout_sec: 30
+  workspace_root: .sandbox
+
+paths:
+  data_dir: data
+  results_dir: results
+  baseline_dir: data/baselines
+  pool_dir: data/skill_pool
+  skillsbench_dir: data/skillsbench
+  mutation_meta_skill_dir: meta_skills/skill_mutator
+
+evolution:
+  population_size: 6
+  generations: 2
+  retrieval_top_k: 8
+  max_llm_generated_ratio: 0.3
+  stagnation_window: 3
+  escape_injections: 2
+  enable_trace: true
+  enable_crossover: true
+  enable_pareto: true
+  enable_escape: true
+
+experiments:
+  default_task_glob: data/skillsbench/tasks/*.json
+  default_output_dir: results/default
+  min_test_cases: 3

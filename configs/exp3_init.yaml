@@ -1,0 +1,4 @@
+extends: default.yaml
+experiment_name: exp3_init
+experiments:
+  default_output_dir: results/exp3_init
