@@ -60,7 +60,7 @@ class EvolutionSettings(BaseModel):
     enable_trace: bool = True
     enable_crossover: bool = True
     enable_pareto: bool = True
-    enable_escape: bool = True
+    enable_escape: bool = False  # disabled: escape injects synthetic seeds only; re-enable after Lamarckian back-inference is implemented
 
 
 class ExperimentSettings(BaseModel):

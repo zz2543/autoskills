@@ -14,16 +14,19 @@ APO-SkillsMD 是一个面向 AAAI 2027 研究实验的 Python 框架，用于把
 
 ## 1. 当前实现边界
 
-这个仓库当前是“可运行研究框架骨架”，不是已经做满所有真实线上集成细节的最终实验系统。具体边界如下：
+这个仓库是”可运行研究框架”，覆盖了核心四组件的完整代码路径。具体边界如下：
 
 - `MiniMax` 已按 OpenAI-compatible 接口接入，可通过配置 `base_url` 和 `model` 使用。
 - `OpenAI` 复用同一套 OpenAI-compatible 客户端。
 - `Anthropic / Gemini / Qwen` 目前保留了结构化接入口和统一抽象，但真实请求细节仍是 `NotImplementedError` 占位。
-- `DockerSandbox` 按计划保留为 TODO 桩，当前默认可运行的是 `SubprocessSandbox`。
-- `trace-guided mutation`、`crossover`、`escape`、`NSGA-II` 都已经有实际代码路径，不是空文件。
-- `trace-guided mutation` 现在通过固定的 mutation agent + 元 skill 执行；`lineage-guided mutation` 仍保留轻量占位分支。
-
-如果后续你要把这个仓库直接用于正式实验，优先补的是真实 provider 接口细节、Docker 隔离、以及真实 SkillsBench / 冗余池数据下载后的端到端验证。
+- `DockerSandbox` 已实现：`docker run --network=none --memory=XXXm` + `docker exec` 路径完整，需要宿主机有 Docker 守护进程。默认仍使用 `SubprocessSandbox`；任务配置可通过 `TaskSandboxConfig` 切换到 Docker。
+- `trace-guided mutation`、`crossover`、`NSGA-II` 都有真实代码路径。
+- `trace-guided mutation` 通过固定 mutation agent + 元 skill 执行；`lineage-guided mutation` 保留轻量占位分支（设计文档中的 GEPA 谱系归因暂不实现）。
+- **`escape` 机制默认关闭**（`evolution.enable_escape: false`）：当前 escape 只注入合成种子，不实现 Lamarckian 反推，开启后对实验结果帮助有限。待后续补齐反推算子后再开启。Exp 2 / Exp 3 / Exp 4 实验也暂不在本批次实现，在实验结果验证后再补。
+- **冗余池初始化**：当 market skill 不足时，现在调用 LLM 生成真实 skill（`llm_generate_skill`），不再只用静态占位桩。
+- **模块级交叉**：当 LLM 可用时，`crossover` 使用 LLM 辅助功能槽对齐（Step 1）和 markdown 缝合（Step 4）；无 LLM 时退回 AST 启发式对齐。
+- **VerifierSpec.command**：评估器现在会执行 `verifier.command` 并以 exit code 判断是否通过，支持官方验证器接入。
+- **运行时 runtime guard**：`detect_hardcoded_answer` 已接入评估器，对答案硬编码给出软警告（不影响 pass/fail，记录在 notes 中）。
 
 ## 2. 环境要求
 
@@ -324,7 +327,7 @@ llm:
 | `base.py` | `Sandbox` 抽象接口 |
 | `profiles.py` | `offline-local / offline-extended / network-whitelist` 三档 profile |
 | `subprocess_backend.py` | 默认 tempdir + subprocess 沙盒，支持资源限制和文件隔离 |
-| `docker_backend.py` | Docker 后端占位，未来可替换 |
+| `docker_backend.py` | Docker 后端（`docker exec` 实现，需 Docker daemon）；默认仍用 subprocess |
 
 #### `safety/`
 

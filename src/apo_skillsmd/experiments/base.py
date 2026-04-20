@@ -73,12 +73,19 @@ class ExperimentRunner:
         return [load_skill(path) for path in skill_dirs]
 
     def build_driver(self, evaluator: SkillsBenchEvaluator) -> EvolutionDriver:
+        # When no explicit ablation override is given, derive from config flags.
+        ablation = self.ablation if self.ablation is not None else EvolutionAblation(
+            use_trace=self.settings.evolution.enable_trace,
+            use_crossover=self.settings.evolution.enable_crossover,
+            use_pareto=self.settings.evolution.enable_pareto,
+            use_escape=self.settings.evolution.enable_escape,
+        )
         return EvolutionDriver(
             evaluator,
             self.safety_filter,
             population_size=self.settings.evolution.population_size,
             generations=self.settings.evolution.generations,
-            ablation=self.ablation,
+            ablation=ablation,
             mutation_meta_skill_dir=self.settings.paths.mutation_meta_skill_dir,
             mutation_workspace_root=self.settings.sandbox.workspace_root,
         )
@@ -101,6 +108,7 @@ class ExperimentRunner:
                 top_k=self.settings.evolution.retrieval_top_k,
                 target_size=self.settings.evolution.population_size,
                 max_generated_ratio=self.settings.evolution.max_llm_generated_ratio,
+                llm=evaluator.agent_loop.llm,
             )
             task_dir = Path(self.settings.experiments.default_output_dir) / task.task_id.replace("/", "_")
             result = driver.run(task, initial_population, output_dir=task_dir)

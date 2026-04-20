@@ -6,7 +6,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 def _hash_text(content: str) -> str:
@@ -22,6 +22,18 @@ class SkillFrontmatter(BaseModel):
     tags: list[str] = Field(default_factory=list)
     category: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def _coerce_tags(cls, value: object) -> list[str]:
+        """Accept a comma-delimited string from malformed YAML frontmatter."""
+        if isinstance(value, list):
+            return value
+        if isinstance(value, str):
+            import re
+            cleaned = re.sub(r"[\[\]]", "", value)
+            return [t.strip() for t in cleaned.split(",") if t.strip()]
+        return []
 
 
 class ScriptFile(BaseModel):

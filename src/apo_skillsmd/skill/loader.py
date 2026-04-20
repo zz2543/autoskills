@@ -38,7 +38,10 @@ def _load_resources(root: Path) -> dict[str, SkillResource]:
             continue
         if relative == "SKILL.md" or relative.startswith("scripts/"):
             continue
-        content = path.read_text(encoding="utf-8")
+        try:
+            content = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue  # skip binary files (images, compiled artifacts, etc.)
         resources[relative] = SkillResource(
             relative_path=relative,
             content=content,

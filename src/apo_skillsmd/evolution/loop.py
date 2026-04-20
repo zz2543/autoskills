@@ -203,6 +203,7 @@ class EvolutionDriver:
 
             if self.ablation.use_crossover:
                 front = current_pareto_front(population) if self.ablation.use_pareto else population[:]
+                _crossover_llm = getattr(self.evaluator.agent_loop, "llm", None)
                 for left, right in self._pair_front(front):
                     if left.trace is None or right.trace is None:
                         continue
@@ -212,6 +213,7 @@ class EvolutionDriver:
                         left.trace,
                         right.trace,
                         generation=generation,
+                        llm=_crossover_llm,
                     )
                     if child is None:
                         continue
