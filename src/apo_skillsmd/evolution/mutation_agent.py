@@ -91,6 +91,8 @@ class MutationAgentRunner:
         command_timeout_sec: int = 30,
         sandbox_profile: SandboxProfileName = SandboxProfileName.OFFLINE_LOCAL,
         workspace_root: str | Path | None = None,
+        llm_temperature: float = 0.2,
+        llm_max_tokens: int = 2048,
     ) -> None:
         self.meta_skill_dir = Path(meta_skill_dir)
         self.meta_skill = load_skill(self.meta_skill_dir)
@@ -103,6 +105,8 @@ class MutationAgentRunner:
             max_steps=max_steps,
             command_timeout_sec=command_timeout_sec,
             sandbox_profile=sandbox_profile,
+            llm_temperature=llm_temperature,
+            llm_max_tokens=llm_max_tokens,
         )
 
     def _make_workspace_dir(self, parent_skill: Skill, generation: int) -> Path:

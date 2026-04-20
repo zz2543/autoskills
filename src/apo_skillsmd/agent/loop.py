@@ -39,11 +39,15 @@ class AgentLoop:
         max_steps: int = 8,
         command_timeout_sec: int = 30,
         sandbox_profile: SandboxProfileName = SandboxProfileName.OFFLINE_LOCAL,
+        llm_temperature: float = 0.2,
+        llm_max_tokens: int = 2048,
     ) -> None:
         self.llm = llm
         self.max_steps = max_steps
         self.command_timeout_sec = command_timeout_sec
         self.sandbox_profile = sandbox_profile
+        self.llm_temperature = llm_temperature
+        self.llm_max_tokens = llm_max_tokens
 
     def _build_default_sandbox(self) -> SubprocessSandbox:
         return SubprocessSandbox(
@@ -70,8 +74,8 @@ class AgentLoop:
                 response = self.llm.complete(
                     messages,
                     tools=DEFAULT_TOOL_SCHEMAS,
-                    temperature=0.2,
-                    max_tokens=2048,
+                    temperature=self.llm_temperature,
+                    max_tokens=self.llm_max_tokens,
                 )
                 recorder.record_llm_usage(response.usage)
                 messages.append(

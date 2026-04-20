@@ -18,8 +18,12 @@ class ScriptedTestLLM(LLMClient):
 
     def __init__(self) -> None:
         self.model = "scripted-test"
+        self.last_temperature: float | None = None
+        self.last_max_tokens: int | None = None
 
     def complete(self, messages, *, tools=None, temperature: float = 0.2, max_tokens: int = 2048):
+        self.last_temperature = temperature
+        self.last_max_tokens = max_tokens
         system_prompt = messages[0].content if messages else ""
         tool_messages = [message for message in messages if message.role.value == "tool"]
         if "Skill name: Skill Mutator" in system_prompt:
@@ -115,3 +119,17 @@ def test_skillsbench_evaluator_computes_pass_rate() -> None:
     assert evaluation.pass_rate == 1.0
     assert evaluation.execution_tokens > 0
     assert evaluation.case_results[0].passed is True
+
+
+def test_agent_loop_uses_configured_llm_parameters() -> None:
+    root = Path("tests/fixtures")
+    skill = load_skill(root / "mock_skill")
+    task = load_task_spec(root / "mock_task.json")
+    llm = ScriptedTestLLM()
+    loop = AgentLoop(llm, max_steps=4, llm_temperature=0.05, llm_max_tokens=512)
+
+    result = loop.run(task, skill)
+
+    assert result.success is True
+    assert llm.last_temperature == 0.05
+    assert llm.last_max_tokens == 512

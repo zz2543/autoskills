@@ -1,3 +1,41 @@
+Metadata-Version: 2.4
+Name: apo-skillsmd
+Version: 0.1.0
+Summary: APO-SkillsMD research framework for evolving mixed-format agent skills.
+Author: APO-SkillsMD Contributors
+License: MIT
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: pydantic>=2.6
+Requires-Dist: pydantic-settings>=2.2
+Requires-Dist: httpx>=0.27
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: python-frontmatter>=1.1
+Requires-Dist: bandit>=1.7
+Requires-Dist: gitpython>=3.1
+Requires-Dist: rank-bm25>=0.2
+Requires-Dist: numpy>=1.26
+Requires-Dist: rich>=13.7
+Requires-Dist: tenacity>=8.2
+Requires-Dist: diskcache>=5.6
+Provides-Extra: anthropic
+Requires-Dist: anthropic>=0.52; extra == "anthropic"
+Provides-Extra: openai
+Requires-Dist: openai>=1.30; extra == "openai"
+Provides-Extra: gemini
+Requires-Dist: google-generativeai>=0.8; extra == "gemini"
+Provides-Extra: qwen
+Requires-Dist: dashscope>=1.20; extra == "qwen"
+Provides-Extra: docker
+Requires-Dist: docker>=7.0; extra == "docker"
+Provides-Extra: embed
+Requires-Dist: sentence-transformers>=2.7; extra == "embed"
+Provides-Extra: dev
+Requires-Dist: pytest>=8.2; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.23; extra == "dev"
+Requires-Dist: ruff>=0.5; extra == "dev"
+Requires-Dist: mypy>=1.10; extra == "dev"
+
 # APO-SkillsMD
 
 APO-SkillsMD 是一个面向 AAAI 2027 研究实验的 Python 框架，用于把 `SKILL.md + scripts/` 形式的 agent skill 当作“代码 + 文本混合体”进行自动演化。当前仓库已经按照 `plan.md` 的要求搭建出完整代码框架，覆盖：

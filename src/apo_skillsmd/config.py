@@ -16,10 +16,10 @@ class LLMSettings(BaseModel):
     """Runtime settings for the LLM backend."""
 
     provider: ProviderName = ProviderName.MINIMAX
-    model: str = "abab6.5s-chat"
+    model: str = "MiniMax-M2.1"
     temperature: float = 0.2
     max_tokens: int = 2048
-    base_url: str | None = "https://api.minimax.chat/v1"
+    base_url: str | None = "https://api.minimax.io/v1"
     timeout_sec: int = 60
     use_cache: bool = True
     cache_dir: str = ".cache/llm"

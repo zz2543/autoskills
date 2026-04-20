@@ -112,7 +112,7 @@ def build_llm(settings: AppSettings) -> LLMClient:
         api_key = settings.api_key_for_provider(provider)
         if not api_key:
             raise ValueError("MINIMAX_API_KEY is required for the MiniMax provider.")
-        base_url = settings.llm.base_url or "https://api.minimax.chat/v1"
+        base_url = settings.llm.base_url or "https://api.minimax.io/v1"
         client = MiniMaxLLMClient(
             model=settings.llm.model,
             api_key=api_key,

@@ -74,6 +74,8 @@ class EvolutionDriver:
             command_timeout_sec=self.evaluator.agent_loop.command_timeout_sec,
             sandbox_profile=self.evaluator.sandbox_profile,
             workspace_root=mutation_workspace_root,
+            llm_temperature=self.evaluator.agent_loop.llm_temperature,
+            llm_max_tokens=self.evaluator.agent_loop.llm_max_tokens,
         )
 
     def _evaluate(self, skill: Skill, task: TaskSpec) -> tuple[ParetoCandidate, EvaluationResult]:

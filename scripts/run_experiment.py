@@ -80,6 +80,8 @@ def main() -> None:
         max_steps=settings.sandbox.max_steps,
         command_timeout_sec=settings.sandbox.command_timeout_sec,
         sandbox_profile=settings.sandbox.profile,
+        llm_temperature=settings.llm.temperature,
+        llm_max_tokens=settings.llm.max_tokens,
     )
     evaluator = SkillsBenchEvaluator(loop, sandbox_profile=settings.sandbox.profile)
     runner = select_runner(args.experiment or settings.experiment_name, settings)

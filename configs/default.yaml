@@ -1,9 +1,9 @@
 llm:
-  provider: minimax
-  model: abab6.5s-chat
+  provider: openai
+  model: gpt-5.2
   temperature: 0.2
   max_tokens: 2048
-  base_url: https://api.minimax.chat/v1
+  base_url: https://api.aicodemirror.com/api/codex/backend-api/codex/v1
   use_cache: true
   cache_dir: .cache/llm
 
